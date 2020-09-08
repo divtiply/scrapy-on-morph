@@ -44,7 +44,7 @@ VALUES (?,?,?);
         return item
 
     def _insert(self, table, job, data):
-        timestamp = int(time.time() * 1000)
+        timestamp = int(time.time() * 1e6)
         self.cursor.execute(self.INSERT_SQL % table, (timestamp, job, data))
 
     def _create(self, table):
