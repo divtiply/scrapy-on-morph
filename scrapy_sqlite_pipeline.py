@@ -4,20 +4,21 @@ import time
 
 
 class SqlitePipeline:
-    CREATE_TABLE_SQL = '''
-CREATE TABLE IF NOT EXISTS %s (
-    timestamp INTEGER PRIMARY KEY,
+    CREATE_SQL = '''
+CREATE TABLE IF NOT EXISTS {table} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER,
     job INTEGER NOT NULL,
-    data TEXT NOT NULL
+    json TEXT NOT NULL
 );
-    '''
-    CREATE_INDEX_SQL = '''
-CREATE INDEX IF NOT EXISTS idx_%s_job
-ON %s (job);
+CREATE INDEX IF NOT EXISTS idx_{table}_timestamp
+ON {table} (timestamp);
+CREATE INDEX IF NOT EXISTS idx_{table}_job
+ON {table} (job);
     '''
     INSERT_SQL = '''
-INSERT INTO %s (timestamp, job, data)
-VALUES (?,?,?);
+INSERT INTO {table} (timestamp, job, json)
+VALUES (:timestamp, :job, :json);
     '''
 
     def __init__(self, database='data.sqlite', table=None, job=None):
@@ -38,14 +39,17 @@ VALUES (?,?,?);
         self._insert(
             self.table or spider.name,
             self.job,
-            json.dumps(item, ensure_ascii=False, separators=(',', ':')),
+            item,
         )
         return item
 
     def _insert(self, table, job, data):
-        timestamp = time.time_ns()
-        self.cursor.execute(self.INSERT_SQL % table, (timestamp, job, data))
+        timestamp = int(time.time())
+        data_json = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+        self.cursor.execute(
+            self.INSERT_SQL.format(table=table),
+            dict(timestamp=timestamp, job=job, json=data_json),
+        )
 
     def _create(self, table):
-        self.cursor.execute(self.CREATE_TABLE_SQL % table)
-        self.cursor.execute(self.CREATE_INDEX_SQL % ((table,) * 2))
+        self.cursor.executescript(self.CREATE_SQL.format(table=table))
