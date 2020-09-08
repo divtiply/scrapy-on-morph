@@ -7,6 +7,14 @@ class MorphSpider(scrapy.Spider):
     start_urls = ['https://morph.io/users']
 
     def parse(self, response):
+        pagination = response.css('.pagination .page a:not([href^=javascript])')
+        yield from response.follow_all(pagination)
         for element in response.css('.list-group-item'):
-            username = element.css('img::attr(alt)').get()
-            yield dict(username=username)
+            item = {}
+            item['username'] = element.css('img::attr(alt)').get()
+            name = element.css('h2::text').get()
+            nickname = element.css('.owner-nickname::text').get()
+            item['fullname'] = name.strip() if nickname else None
+            item['organization'] = element.css('h2 ~ div::text').get()
+            item['avatar'] = element.css('img::attr(src)').get()
+            yield {k: v for k, v in item.items() if v is not None}
